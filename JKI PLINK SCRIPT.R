@@ -33,4 +33,63 @@ ped <- read.csv("JD_PFR_PLINK.ped", header = FALSE,sep = "\t")
 names(JKI_t) <- names(ped)
 combined_ped <- bind_rows(ped, JKI_t)
 
+#Remove duplicates groups except for one member
+ids_to_remove <- read.delim("DupeSampleGroupRemoving.txt", header = FALSE, stringsAsFactors = FALSE)
+ids_to_remove <- ids_to_remove$V1
+combined_ped <- combined_ped[!(combined_ped$V2 %in% ids_to_remove), ]
+
+#Rename remaining duplicate member
+ids_to_rename <- read.delim("DupeSampleGroupRenaming.txt", header = FALSE, stringsAsFactors = FALSE)
+idx <- match(combined_ped$V2, ids_to_rename$V2)
+combined_ped$V2[!is.na(idx)] <- ids_to_rename$V1[idx[!is.na(idx)]]
+
+#Load .map file
+map <- read.csv("JD_PFR_PLINK.map", header = FALSE, sep ="\t")
+
+#Save .map file and combined .ped file with same base
+write.table(map, "JKI_PLINK.map", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+write.table(combined_ped, "JKI_PLINK.ped", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+
+##Running PLINK
+
+#clear workspace
+rm(list=ls())
+
+#set working directory [must contain plink.exe and files for analysis]
+setwd("C:/Users/curly/Desktop/Apple Genotyping/Methods/JKI PLINK Duplicate Identification/Inputs")
+
+#Run PLINK
+system("plink --file JKI_PLINK --missing-genotype 0 --genome full --min 0.90")
+
+#Read genome file
+genome <- read.table("plink.genome", header = TRUE, sep = "", stringsAsFactors = FALSE)
+write.table(genome, "C:/Users/curly/Desktop/Apple Genotyping/Results/JKI PLINK Duplicate Identification/PLINK_results.txt", sep = "\t", row.names = FALSE, quote = FALSE)
+
+##Grouping duplicates
+
+#Group duplicates with igraph
+genome <- subset(genome, select = c("IID1","IID2"))
+graph <- graph_from_data_frame(genome, directed = FALSE)
+components <- components(graph)
+
+#Sort groupings by number of duplicates
+group_sizes <- table(components$membership)
+sorted_group_ids <- order(group_sizes)
+new_ids <- match(components$membership, sorted_group_ids)
+V(graph)$group <- new_ids
+grouped_samples <- split(names(components$membership), new_ids)
+
+#Pad group with length less than max length with NA's
+max_len <- max(sapply(grouped_samples, length))
+padded_list <- lapply(grouped_samples, function(x) {c(x, rep(" ", max_len - length(x)))})
+
+#Write groupings to a dataframe
+dd <- as.data.frame(do.call(rbind, padded_list))
+
+#Add a number for each group
+dd <- cbind(Group = seq_len(nrow(dd)), dd)
+
+#Save .csv of duplicate groupings
+write.csv(dd, "C:/Users/curly/Desktop/Apple Genotyping/Results/JKI PLINK Duplicate Identification/Grouped_Duplicates.csv", row.names = FALSE)
 
