@@ -33,16 +33,6 @@ ped <- read.csv("JD_PFR_PLINK.ped", header = FALSE,sep = "\t")
 names(JKI_t) <- names(ped)
 combined_ped <- bind_rows(ped, JKI_t)
 
-#Remove duplicates groups except for one member
-ids_to_remove <- read.delim("DupeSampleGroupRemoving.txt", header = FALSE, stringsAsFactors = FALSE)
-ids_to_remove <- ids_to_remove$V1
-combined_ped <- combined_ped[!(combined_ped$V2 %in% ids_to_remove), ]
-
-#Rename remaining duplicate member
-ids_to_rename <- read.delim("DupeSampleGroupRenaming.txt", header = FALSE, stringsAsFactors = FALSE)
-idx <- match(combined_ped$V2, ids_to_rename$V2)
-combined_ped$V2[!is.na(idx)] <- ids_to_rename$V1[idx[!is.na(idx)]]
-
 #Load .map file
 map <- read.csv("JD_PFR_PLINK.map", header = FALSE, sep ="\t")
 
@@ -59,7 +49,7 @@ rm(list=ls())
 #set working directory [must contain plink.exe and files for analysis]
 setwd("C:/Users/curly/Desktop/Apple Genotyping/Methods/JKI PLINK Duplicate Identification/Inputs")
 
-#Run PLINK
+#Run PLINK, with PI_HAT > 0.9
 system("plink --file JKI_PLINK --missing-genotype 0 --genome full --min 0.90")
 
 #Read genome file
@@ -69,7 +59,6 @@ write.table(genome, "C:/Users/curly/Desktop/Apple Genotyping/Results/JKI PLINK D
 ##Grouping duplicates
 
 #Group duplicates with igraph
-genome <- subset(genome, select = c("IID1","IID2"))
 graph <- graph_from_data_frame(genome, directed = FALSE)
 components <- components(graph)
 
@@ -89,6 +78,13 @@ dd <- as.data.frame(do.call(rbind, padded_list))
 
 #Add a number for each group
 dd <- cbind(Group = seq_len(nrow(dd)), dd)
+
+# Add the number of duplicates in each grouping
+sample_counts <- rowSums(dd[, -1] != " ")
+dd <- add_column(dd, SampleCount = sample_counts, .after = "Group")
+
+#Rename columns
+colnames(dd) <- c("Group", "SampleCount", "ID1","ID2","ID3","ID4","ID5","ID6","ID7","ID8","ID9","ID10","ID11","ID12","ID13","ID14","ID15","ID16","ID17","ID18","ID19","ID20","ID21","ID22")
 
 #Save .csv of duplicate groupings
 write.csv(dd, "C:/Users/curly/Desktop/Apple Genotyping/Results/JKI PLINK Duplicate Identification/Grouped_Duplicates.csv", row.names = FALSE)
