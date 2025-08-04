@@ -59,6 +59,7 @@ write.table(genome, "C:/Users/curly/Desktop/Apple Genotyping/Results/JKI PLINK D
 ##Grouping duplicates
 
 #Group duplicates with igraph
+genome <- subset(genome, select = c("IID1","IID2"))
 graph <- graph_from_data_frame(genome, directed = FALSE)
 components <- components(graph)
 
