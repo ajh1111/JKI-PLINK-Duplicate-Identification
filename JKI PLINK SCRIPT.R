@@ -49,8 +49,8 @@ rm(list=ls())
 #set working directory [must contain plink.exe and files for analysis]
 setwd("C:/Users/curly/Desktop/Apple Genotyping/Methods/JKI PLINK Duplicate Identification/Inputs")
 
-#Run PLINK, with PI_HAT > 0.9
-system("plink --file JKI_PLINK --missing-genotype 0 --genome full --min 0.90")
+#Run PLINK
+system("plink --file JKI_PLINK --missing-genotype 0 --genome full ")
 
 #Read genome file
 genome <- read.table("plink.genome", header = TRUE, sep = "", stringsAsFactors = FALSE)
@@ -58,8 +58,11 @@ write.table(genome, "C:/Users/curly/Desktop/Apple Genotyping/Results/JKI PLINK D
 
 ##Grouping duplicates
 
-#Group duplicates with igraph
+#Filter for PI_HAT >0.96 (duplicate threshold)
+genome <- genome[!(genome$PI_HAT < 0.96), ]
 genome <- subset(genome, select = c("IID1","IID2"))
+
+#Group duplicates with igraph
 graph <- graph_from_data_frame(genome, directed = FALSE)
 components <- components(graph)
 
